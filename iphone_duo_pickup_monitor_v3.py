@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from datetime import datetime, timezone
 
 # IMPORTANT: Apple has been returning HTTP 541 for the older fulfillment-messages
@@ -23,6 +24,7 @@ PRODUCT_NAME = "iPhone Duo 256GB Night Sky"
 ZIP_CODE = os.getenv("ZIP_CODE", "28027")
 INTERVAL = max(60, int(os.getenv("INTERVAL", "60")))
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "").strip()
+STATE_FILE = Path(os.getenv("STOCK_STATE_FILE", ".stock-state/availability.json"))
 NTFY_SERVER = os.getenv("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -114,30 +116,65 @@ def check_once():
 
 def main(once=False):
     previous = None
+
+    try:
+        if STATE_FILE.exists():
+            previous = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+            if not isinstance(previous, dict):
+                previous = None
+    except (OSError, json.JSONDecodeError):
+        previous = None
+
     while True:
         try:
             current = check_once()
+
             if previous is None:
                 if current:
-                    send_alert(f"{PRODUCT_NAME} pickup available", "Available at:\n" + "\n".join(current.values()))
+                    send_alert(
+                        f"{PRODUCT_NAME} pickup available",
+                        "Available at:\n" + "\n".join(current.values())
+                    )
                 else:
                     log("Initial check: no confirmed pickup availability found.")
             else:
-                newly_available = {k: v for k, v in current.items() if k not in previous}
+                newly_available = {
+                    k: v for k, v in current.items() if k not in previous
+                }
                 if newly_available:
                     send_alert(
                         f"{PRODUCT_NAME} pickup available!",
-                        "Newly available at:\n" + "\n".join(newly_available.values()) + f"\n\n{PRODUCT_URL}",
+                        "Newly available at:\n"
+                        + "\n".join(newly_available.values())
+                        + f"\n\n{PRODUCT_URL}"
                     )
-                no_longer = {k: v for k, v in previous.items() if k not in current}
+
+                no_longer = {
+                    k: v for k, v in previous.items() if k not in current
+                }
                 if no_longer:
-                    log("No longer listed as available: " + ", ".join(no_longer.values()))
+                    log(
+                        "No longer listed as available: "
+                        + ", ".join(no_longer.values())
+                    )
+
+            # Save state only after a successful stock check.
+            STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            STATE_FILE.write_text(
+                json.dumps(current),
+                encoding="utf-8"
+            )
             previous = current
+
         except Exception as exc:
             log(f"Check failed (availability UNKNOWN): {exc}")
+
         if once:
             return
-        time.sleep(max(1, int(INTERVAL + random.uniform(-0.1, 0.1) * INTERVAL)))
+
+        time.sleep(
+            max(1, int(INTERVAL + random.uniform(-0.1, 0.1) * INTERVAL))
+        )
 
 
 if __name__ == "__main__":
