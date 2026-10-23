@@ -1,0 +1,35 @@
+
+name: iPhone Duo Stock Check
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-stock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Get tracker
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Check pickup stock
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ZIP_CODE: "28027"
+        run: python iphone_duo_pickup_monitor_v3.py --once
