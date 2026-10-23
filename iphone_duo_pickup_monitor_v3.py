@@ -22,7 +22,7 @@ PRODUCT_PART = "MK1F4LL/A"
 PRODUCT_NAME = "iPhone Duo 256GB Night Sky"
 ZIP_CODE = os.getenv("ZIP_CODE", "28027")
 INTERVAL = max(60, int(os.getenv("INTERVAL", "60")))
-NTFY_TOPIC = "duo_stock_poorna7mQ9vK2pL8nR4tW6zB3".strip()
+NTFY_TOPIC = os.getenv("NTFY_TOPIC", "").strip()
 NTFY_SERVER = os.getenv("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
