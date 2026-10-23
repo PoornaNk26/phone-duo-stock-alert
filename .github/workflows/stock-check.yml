@@ -29,6 +29,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Restore previous stock state
+        uses: actions/cache/restore@v4
+        with:
+          path: .stock-state
+          key: stock-state-${{ github.run_id }}
+          restore-keys: |
+            stock-state-
+
       - name: Install dependencies
         run: pip install requests
 
@@ -47,4 +55,12 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           ZIP_CODE: "28027"
+          STOCK_STATE_FILE: .stock-state/availability.json
         run: python iphone_duo_pickup_monitor_v3.py --once
+
+      - name: Save previous stock state
+        if: always() && hashFiles('.stock-state/availability.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .stock-state
+          key: stock-state-${{ github.run_id }}
